@@ -1,0 +1,89 @@
+---
+title: "Lab4"
+author: "Guanlan Xu"
+date: "9/27/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Lab4
+
+```{r}
+grid.search.nd <- function(objective,
+                           par,
+                           widths,
+                           npts=10,
+                           tolerance = 1e-8,
+                           verbose=TRUE, ...){
+  
+  p <- length(par)
+  if (all(2*widths <= rep(tolerance,p))){
+    return(par)}
+  
+  if (verbose){
+    # print verbose output
+    cat(paste0("Grid search: [",  par-widths, ",", par+widths, "]\n"))
+  }
+
+  # Construct the grid
+  i<-1
+gd.list <- lapply(1:p, function(i){seq(par[i] - widths[i], 
+                                                 par[i] + widths[i], 
+                                                 length = npts)})
+d.x <- sapply(gd.list, "[[", 2) - sapply(gd.list, "[[", 1)
+gd <- expand.grid(gd.list)
+
+  # Perform the grid search here
+f.x <- apply(gd,1, objective)
+max.idx <- which.max(f.x)
+
+
+#if (show.plots){
+#  plot(x,f.x, col = ifelse(1:length(x) == max.idx, "red", "black"), pch = 16)
+#}
+return(grid.search.nd(objective, 
+                      par = as.numeric(gd[max.idx,]), 
+                      widths = 2*d.x, 
+                      npts = npts,
+                      tolerance = tolerance,...))
+}
+
+```
+
+1. Test for 2-d function:
+
+```{r}
+f.2d <- function(par) {
+   d1 <- par[1]
+   d2 <- par[2]
+  -(d1^2+d2^2)
+}
+
+grid.search.nd(f.2d, par = c(-1,0.5),
+               widths = c(6,6), 
+               npts = 10)
+
+```
+
+
+2. Test for 3-d function:
+
+```{r}
+f.3d <- function(par){
+  d1 <- (par - c(5,3,0))
+  d2 <- (par - c(-5,2,1))
+  d3 <- (par - c(7,1,4))
+  exp(-2*c(d1%*%d1)) + exp(-0.25*c(d2%*%d2) + exp(-20*c(d3%*%d3)))
+}
+
+grid.search.nd(f.3d, par = c(-1,1,-1),
+               widths = c(6,6,6), 
+               npts = 10)
+
+```
+
