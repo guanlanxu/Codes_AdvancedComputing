@@ -1,0 +1,126 @@
+---
+title: "Lab3, Assignment"
+author: "Guanlan Xu"
+date: "9/20/2019"
+output: pdf_document
+---
+
+1. Item 1
+
+```{r}
+# Projects X onto Y
+vproj <- function(x, y){
+  c(x %*% y)/c(y %*% y)*y
+}
+# Norm function
+vnorm <- function(x){
+  c(sqrt(x%*%x))
+}
+
+CGS <- function(X){
+  # Create a matrix to hold out outcome
+  Q <- NA*X
+  # Start with the first column (normalized)
+  Q[,1] <- X[,1]/vnorm(X[,1])
+  
+  # Iterate over the rest of the columns
+  
+  for (i in 2:ncol(X)){
+    # Start with column from X
+    Q[,i] <- X[,i]
+    # Get the projections of X[,i] onto the previous columns of q
+    to_subtract <- lapply(1:(i-1), function(j){
+      vproj(Q[,i], Q[,j])
+    })
+    # Subtract the projections
+    Q[,i] <- Q[,i] - Reduce("+", to_subtract)
+    # Normalize the result
+    Q[,i] <- Q[,i]/vnorm(Q[,i])
+  }
+  # Return Q
+  Q
+  
+}
+
+
+UGS <- function(A,tol = .Machine$double.eps^0.5){
+  stopifnot(is.numeric(A), is.matrix(A))
+  m <- nrow(A)
+  n <- ncol(A)
+  if (m < n) 
+    stop("No. of rows of 'A' must be greater or equal no. of colums.")
+  Q <- matrix(0, m, n)
+  R <- matrix(0, n, n)
+  for (k in 1:n) {
+    Q[, k] <- A[, k]
+    if (k > 1) {
+      for (i in 1:(k - 1)) {
+        R[i, k] <- t(Q[, i]) %*% Q[, k]
+        Q[, k] <- Q[, k] - R[i, k] * Q[, i]
+      }
+    }
+    R[k, k] <-   c(sqrt(Q[, k]%*%Q[, k])) 
+    if (abs(R[k, k]) <= tol) 
+      stop("Matrix 'A' does not have full rank.")
+    Q[, k] <- Q[, k]/R[k, k]
+  }
+  return(Q)
+}
+```
+
+2. Item 2
+```{r}
+X <- model.matrix(Sepal.Width ~ Sepal.Length +  Petal.Length + 
+                    Petal.Width + Species + Petal.Length:Petal.Width + Sepal.Length:Petal.Width, data = iris)
+
+U <- CGS(X)
+U2 <- UGS(X)
+
+# Check for Accuracy:
+zapsmall(t(U) %*% U)
+zapsmall(t(U2) %*% U2)
+
+# Look at off-diagonals:
+max(abs(t(U) %*% U - diag(ncol(U))))
+max(abs(t(U2) %*% U2 - diag(ncol(U2))))
+```
+
+
+3. Item3
+```{r}
+library(ggplot2)
+method <- c("Classical", "Modified")
+cond <- c(0,1,10,50,100,200,500,1000)
+allcond <- expand.grid(method,cond)
+e <- c(NA)
+for (i in 1:nrow(allcond)) {
+  X <- matrix(rnorm(10000*100, mean = allcond[i,2]), ncol = 100)
+  if (allcond[i,1] =="Classical") {
+    e[i] <- max(abs(t(CGS(X)) %*% CGS(X) - diag(ncol(CGS(X)))))
+  }
+  else {
+    e[i] <- max(abs(t(UGS(X)) %*% UGS(X) - diag(ncol(UGS(X)))))
+  }
+  
+}
+ 
+mydat <- cbind(allcond, e)
+colnames(mydat) <- c("Algorithm", "MeanVal", "Error")
+
+mydat
+```
+
+Since the differences of the errors between CGS and UGS are very large, it's difficult to visualize them through a dodged bar-chart directly. We can transform the differences to error ratio. 
+
+
+```{r}
+frac.dif <- c(NA)
+for (i in c(1:8)) {
+  frac.dif[i] <- mydat[2*i-1, 3]/mydat[2*i, 3]
+}
+
+barplot(frac.dif,names.arg = cond,xlab = 'MeanVal',ylab = "error ratio (CGS/UGS)")
+```
+
+
+
